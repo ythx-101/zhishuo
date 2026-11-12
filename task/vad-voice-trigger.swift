@@ -64,6 +64,10 @@
  - Accessibility: allow that launcher in System Settings > Privacy & Security
    > Accessibility so it can post the Right Option event.
  After changing either permission, quit and reopen the launcher before retrying.
+ - When installed with install/install.sh, launchd starts the binary at the
+   fixed path ~/Library/Application Support/zhishuo/vad-voice-trigger, so that
+   binary is what needs both permissions, not Terminal. Granting Terminal only
+   applies when you run the tool directly in the foreground from a terminal.
 
  Keyboard implementation note
  ----------------------------

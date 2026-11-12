@@ -1,0 +1,51 @@
+# ZhiShuo 直说
+
+> macOS 本地声控语音输入工具：用 DJI Mic 接收器的音量做 VAD，开口自动启动豆包输入法免按语音，停说自动结束，可选再按 Return。
+> ZhiShuo is a hands-free voice input tool for macOS that uses local voice activity detection (VAD) on a DJI Mic receiver's input level to toggle Doubao IME dictation.
+
+## 是什么 / 给谁用
+
+- 给用 DJI Mic 无线麦 + 豆包输入法做中文语音输入的 Mac 用户。
+- 不用按快捷键：开口说话自动开始，停说自动结束，可选停说后自动按 Return。
+- 用 Swift 编写，通过 launchd 常驻。
+
+## 工作原理
+
+本机音量 VAD → 模拟「右 Option」→ 豆包输入法免按模式开始/结束 → 可选 Return。VAD 根据麦克风音量判断，不检测硬件按键事件。
+
+## 要求
+
+- macOS 13 或更新版本，Xcode Command Line Tools
+- 豆包输入法：语音设为免按模式，快捷键设为右 Option
+- DJI Mic 接收器（默认设备名 `Wireless Mic Rx`），或用 `--device` 指定其他输入设备
+
+## 快速开始
+
+```sh
+git clone https://github.com/ythx-101/zhishuo.git && cd zhishuo
+./install/install.sh
+```
+
+## 关键参数（默认值）
+
+- `--threshold-db` -40
+- `--stop-threshold-db` -46
+- `--start-ms` 200
+- `--silence-ms` 1000（只允许 800–1200）
+- `--cooldown-ms` 700
+- `--max-seconds` 120
+- `--default-input`：改用系统默认输入设备
+
+## 隐私
+
+不上传音频，不保存录音文件，不联网；语音转写由豆包输入法完成，直说只在本机计算电平并模拟按键。
+
+## 链接
+
+- [README](https://github.com/ythx-101/zhishuo/blob/main/README.md)
+- [主程序 vad-voice-trigger.swift](https://github.com/ythx-101/zhishuo/blob/main/task/vad-voice-trigger.swift)
+- [安装脚本 install.sh](https://github.com/ythx-101/zhishuo/blob/main/install/install.sh)
+
+## 许可证
+
+MIT。与 DJI、字节跳动没有官方关系。

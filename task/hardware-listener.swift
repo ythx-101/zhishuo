@@ -216,7 +216,11 @@ guard openResult == kIOReturnSuccess else {
     exit(EXIT_FAILURE)
 }
 
-print("Listening for HID input values from all devices. Press Ctrl-C to stop.")
+print(
+    arguments.contains("--dji-only")
+        ? "Listening for HID input values from the DJI receiver only. Press Ctrl-C to stop."
+        : "Listening for HID input values from all devices. Press Ctrl-C to stop."
+)
 print(
     "DJI target: vendorID=\(djiVendorID) (0x2CA3) "
         + "productID=\(djiProductID) (0x4011) usagePage=12 (0x000C)."

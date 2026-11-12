@@ -2,13 +2,17 @@
 
 **拿起 DJI Mic，直接说话，自动转录发送。**
 
-本机用 DJI 无线麦的实时音量做声控（VAD）：检测到持续说话 → 模拟一次「右 Option」启动豆包免按语音；持续静音 → 再发「右 Option」结束；可选延迟后发送 Return，实现说完就发送。
+直说是一个 macOS 本地声控语音输入工具，适合用 DJI Mic 无线麦 + 豆包输入法做中文语音输入的 Mac 用户：不用按快捷键，开口说话就自动开始转录，停说自动结束，还可以选择停说后自动按 Return 发送。
+
+实现方式：本机用 DJI 无线麦的实时音量做声控（VAD）：检测到持续说话 → 模拟一次「右 Option」启动豆包免按语音；持续静音 → 再发「右 Option」结束；可选延迟后发送 Return，实现说完就发送。
 
 - 不上传音频，不调用云端 API  
 - 音频仅用于本机电平判断  
 - 开源、可 launchd 常驻  
 
 > 作者：[@YuLin807](https://x.com/YuLin807) — 关注我的 X（推特）主页，一起交流 AI 语音输入实践。
+
+**English:** ZhiShuo is a hands-free voice input tool for macOS. It runs local voice activity detection (VAD) on the input level of a DJI Mic receiver and toggles Doubao IME dictation by simulating the Right Option key; it can optionally press Return after you stop speaking. No audio is uploaded and no cloud API is called.
 
 ## 工作原理
 
@@ -32,12 +36,34 @@
 
 说明：VAD **不是**检测「拿起/放下」硬件事件，而是根据**麦克风音量**判断开始与结束。
 
+## 适用场景与同类方案对比
+
+| 方案 | 触发方式 | 说明 |
+| --- | --- | --- |
+| 直说（本项目） | 靠音量声控，不按键 | 需要豆包输入法 + 一个独立的输入设备；可选自动回车 |
+| 豆包输入法原生快捷键 | 手动按快捷键开始和结束 | 不需要额外程序 |
+| macOS 自带听写 | 系统快捷键触发 | 不依赖第三方输入法 |
+| Karabiner / hidutil 映射 DJI 硬件按键 | 靠按键触发 | 是否可行取决于具体型号是否向 macOS 暴露 HID 事件（见 FAQ「为什么不用按键？」和 `hardware-listener` 探测工具） |
+
+- **适合**：独立使用无线麦、想「拿起就说、说完就发」的人。
+- **不适合**：共享麦克风的开放空间（容易误触发）。
+- **不适合**：需要精确控制发送时机的场景（自动回车会往当前焦点发真实 Return）。
+
 ## 系统要求
 
 - macOS 13 或更新版本  
 - Xcode Command Line Tools（提供 `swiftc`）  
 - [豆包输入法](https://www.doubao.com/)：语音设为 **免按模式**，快捷键设为 **右 Option（右 ⌥）**  
 - DJI Mic 系列接收器；默认设备名 `Wireless Mic Rx`（以系统「声音」里显示的名称为准）
+
+## 快速开始
+
+1. `git clone https://github.com/ythx-101/zhishuo.git && cd zhishuo`
+2. 把豆包输入法语音设为 **免按模式**，快捷键设为 **右 Option**。
+3. 运行 `./install/install.sh`，按弹窗授权麦克风和辅助功能。
+4. 光标放进输入框，对着 Mic 直接说话；安装版默认开启自动回车，停说结束转录后会自动按 Return 发送（见「如何避免误发送？」）。
+
+详细说明见下方完整安装步骤。
 
 ## 完整安装步骤
 
@@ -125,7 +151,7 @@ security find-identity -v -p codesigning
 ### macOS TCC 坑（按「启动者 / 身份」授权）
 
 1. **按可执行文件（及代码签名）记账**，不是按「你觉得这是哪个 App」。  
-   从 Terminal 直接跑、从 launchd 跑、从 Herdr 拉起，若路径或签名不同，系统可能当成不同主体，**反复弹权限**。  
+   从 Terminal 直接跑、从 launchd 跑、从其他启动器 / 终端复用工具拉起，若路径或签名不同，系统可能当成不同主体，**反复弹权限**。  
 2. **只勾选 Terminal 不够**：launchd 启动的是上面的固定二进制，请确认 **该二进制** 在麦克风/辅助功能列表中已允许。  
 3. **改权限后**请 `bootout`/`bootstrap` 或重开服务，否则旧进程仍无权限。  
 4. **未稳定签名时重新编译**会换 CDHash，旧授权可能失效 → 用 `./install/install.sh` 装到固定路径，并尽量 `--sign`。  
@@ -191,6 +217,17 @@ launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.zhishuo.vad.pli
 tail -f "${ZHISHUO_LOG_PATH:-$HOME/Library/Logs/zhishuo.log}"
 ```
 
+### 卸载
+
+```sh
+launchctl bootout gui/$(id -u) "$HOME/Library/LaunchAgents/com.zhishuo.vad.plist"
+rm -f "$HOME/Library/LaunchAgents/com.zhishuo.vad.plist"
+rm -rf "$HOME/Library/Application Support/zhishuo"
+rm -f "$HOME/Library/Logs/zhishuo.log"   # 若用 ZHISHUO_LOG_PATH 改过日志路径，删对应文件
+```
+
+需要的话，再到「系统设置 → 隐私与安全性 → 麦克风 / 辅助功能」把这个程序的条目删掉。
+
 ### 手动编译 / 调试
 
 ```sh
@@ -213,6 +250,22 @@ swiftc \
 
 调试时优先 `--dry-run`（只打印 VAD，不发真实按键）。
 
+### VAD 调参
+
+| 参数 | 默认值 | 作用 |
+| --- | --- | --- |
+| `--threshold-db` | -40 | 开始说话的阈值（dBFS） |
+| `--stop-threshold-db` | -46 | 静音阈值（dBFS），必须低于开始阈值 |
+| `--start-ms` | 200 | 需要连续说话多久才开始 |
+| `--silence-ms` | 1000 | 停说多久后结束；只允许 800–1200 |
+| `--cooldown-ms` | 700 | 停止后的防抖窗口 |
+| `--max-seconds` | 120 | 单次录音最长时间，超时强制结束 |
+| `--default-input` | 关（默认按设备名选择） | 改用系统默认输入设备 |
+
+调参建议：环境噪音误触发就提高阈值（例如从 -42 提到 -36），说话没被识别就降低阈值；先用 `--dry-run --verbose` 观察电平。
+
+注意：`install.sh` 目前只把 `--device`、`--auto-enter`、`--auto-enter-delay-ms` 写进 plist。其他参数需要手动编辑 `~/Library/LaunchAgents/com.zhishuo.vad.plist` 的 `ProgramArguments`，再重新 bootstrap（与上文加 `--verbose` 的做法相同）。
+
 ### 安装器与主程序参数对照
 
 | `install.sh` 选项 | 写入 launchd 的程序参数 | `vad-voice-trigger` CLI |
@@ -230,6 +283,22 @@ LaunchAgent Label：`com.zhishuo.vad`
 ### 为什么不用按键？
 
 DJI Mic 2 的按键事件经 USB 是否稳定暴露给 macOS 因型号而异；社区在 Mic Mini 上有 HID 映射方案，但本项目刻意做成 **与按键无关的声控**：只要接收器作为输入设备进系统，就能「开口即录」。作者实测方向也是「拿起直接说、停说若干秒结束」。若你更需要硬件键触发，可另接 Karabiner / hidutil 方案，与本工具可并存讨论。
+
+### 不用 DJI Mic 能用吗？
+
+程序按设备名选择输入设备，可以用 `--device "名字"` 或 `--default-input` 指定别的麦克风。作者测试的是 DJI Mic 接收器；换其他设备请先用 `--dry-run --verbose` 调好阈值（见「VAD 调参」）。
+
+### 停说多久会结束？能改吗？
+
+默认 1000ms。`--silence-ms` 可以在 800–1200 之间调整（见「VAD 调参」）。
+
+### 环境吵会误触发吗？
+
+有可能。可以提高 `--threshold-db`；另外需要连续说话 `--start-ms`（默认 200ms）才会开始。详见「VAD 调参」。
+
+### 怎么卸载？
+
+见「使用说明 → 卸载」。
 
 ### 常驻听麦费电吗？
 
@@ -295,6 +364,16 @@ install/install.sh             编译、签名、权限引导、launchd
 install/com.zhishuo.vad.plist  LaunchAgent 模板
 LICENSE                        MIT
 ```
+
+`hardware-listener` 是可选的 HID 探测工具，编译和运行：
+
+```sh
+swiftc -framework IOKit -framework CoreFoundation \
+  task/hardware-listener.swift -o task/hardware-listener
+./task/hardware-listener --dji-only
+```
+
+需要给启动它的终端授予「输入监控」权限。
 
 ## 致谢
 
